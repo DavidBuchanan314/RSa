@@ -24,12 +24,21 @@ impl BigInt {
 		}
 	}
 	
+	// helper function to get the ith data word, even if it's off the end
+	fn get_word(&self, i: usize) -> BigIntWord {
+		if i >= self.storage.len() {
+			0
+		} else {
+			self.storage[i]
+		}
+	}
+	
 	fn add(&self, other: &BigInt) -> BigInt {
 		let length = std::cmp::max(self.storage.len(), other.storage.len());
 		let mut result = vec![0; length];
 		let mut tmp: BigIntDWord = 0;
 		for i in 0..length {
-			tmp += self.storage[i] as BigIntDWord + other.storage[i] as BigIntDWord;
+			tmp += self.get_word(i) as BigIntDWord + other.get_word(i) as BigIntDWord;
 			result[i] = tmp as BigIntWord;
 			tmp >>= WORDBYTES * BYTEBITS; // carry any overflow
 		}
