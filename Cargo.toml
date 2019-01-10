@@ -1,0 +1,7 @@
+[package]
+name = "rsa"
+version = "0.1.0"
+authors = ["David Buchanan <d@vidbuchanan.co.uk>"]
+
+[dependencies]
+hex = "*"
