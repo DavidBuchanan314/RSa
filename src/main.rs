@@ -5,11 +5,16 @@ extern crate hex;
 
 use std::cmp::Ordering;
 
+type BigIntWord = u32;
+type BigIntDWord = u64;
+const WORDBYTES: usize = 4;
+const BYTEBITS: usize = 8;
+
 /// This type represents positive arbitrary precision integers
 /// The least significant word comes first
 #[derive(Debug, Clone)]
 struct BigInt {
-	storage: Vec<u64>
+	storage: Vec<BigIntWord>
 }
 
 impl BigInt {
@@ -18,14 +23,31 @@ impl BigInt {
 			self.storage.pop();
 		}
 	}
+	
+	fn add(&self, other: &BigInt) -> BigInt {
+		let length = std::cmp::max(self.storage.len(), other.storage.len());
+		let mut result = vec![0; length];
+		let mut tmp: BigIntDWord = 0;
+		for i in 0..length {
+			tmp += self.storage[i] as BigIntDWord + other.storage[i] as BigIntDWord;
+			result[i] = tmp as BigIntWord;
+			tmp >>= WORDBYTES * BYTEBITS; // carry any overflow
+		}
+		
+		if tmp > 0 {
+			result.push(tmp as BigIntWord);
+		}
+		
+		return BigInt{storage: result};
+	}
 }
 
 impl From<Vec<u8>> for BigInt {
 	fn from(data: Vec<u8>) -> BigInt {
-		let mut storage = vec![0u64; (data.len()+7)/8];
+		let mut storage = vec![0; (data.len()+WORDBYTES-1)/WORDBYTES];
 		let mut si = 0;
 		for di in (0..data.len()).rev() {
-			storage[si/8] |= (data[di] as u64) << (si%8)*8;
+			storage[si/WORDBYTES] |= (data[di] as BigIntWord) << (si%WORDBYTES)*BYTEBITS;
 			si += 1;
 		}
 		let mut result = BigInt{storage: storage};
@@ -36,10 +58,10 @@ impl From<Vec<u8>> for BigInt {
 
 impl From<BigInt> for Vec<u8> {
 	fn from(bigint: BigInt) -> Vec<u8> {
-		let mut data = vec![0u8; bigint.storage.len()*8];
+		let mut data = vec![0; bigint.storage.len()*WORDBYTES];
 		for i in 0..bigint.storage.len() {
-			for j in 0..8 {
-				data[i*8+j] = (bigint.storage[i] >> (8*j)) as u8;
+			for j in 0..WORDBYTES {
+				data[i*WORDBYTES+j] = (bigint.storage[i] >> (BYTEBITS*j)) as u8;
 			}
 		}
 		while data.last() == Some(&0) {data.pop();}; // strip trailing zeroes
@@ -62,8 +84,9 @@ impl PartialOrd for BigInt {
 
 fn main() {
 	let foo = BigInt::from(hex::decode("0000000000000000deadbeefcafebabec001d00d").unwrap());
-	let bar = BigInt::from(hex::decode("feadbeefcafebabec001d00d").unwrap());
+	let bar = BigInt::from(hex::decode("deadbeefcafebabec001d00d").unwrap());
 	println!("{:?}", foo);
 	println!("{}", hex::encode(Vec::from(foo.clone())));
 	println!("{:?}", foo == bar);
+	println!("{}", hex::encode(Vec::from(foo.add(&bar))));
 }
