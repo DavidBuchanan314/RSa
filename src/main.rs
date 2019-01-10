@@ -3,6 +3,8 @@
  */
 extern crate hex;
 
+use std::cmp::Ordering;
+
 /// This type represents positive arbitrary precision integers
 /// The least significant word comes first
 #[derive(Debug, Clone)]
@@ -48,15 +50,19 @@ impl From<BigInt> for Vec<u8> {
 
 impl PartialEq for BigInt {
 	fn eq(&self, other: &BigInt) -> bool {
-		self.storage == other.storage // bigints should always be normalised
+		self.storage.eq(&other.storage) // bigints should always be normalised
 	}
 }
 
-impl Eq for BigInt {}
+impl PartialOrd for BigInt {
+	fn partial_cmp(&self, other: &BigInt) -> Option<Ordering> {
+		self.storage.partial_cmp(&other.storage) // it just werks
+	}
+}
 
 fn main() {
 	let foo = BigInt::from(hex::decode("0000000000000000deadbeefcafebabec001d00d").unwrap());
-	let bar = BigInt::from(hex::decode("deadbeefcafebabec001d00d").unwrap());
+	let bar = BigInt::from(hex::decode("feadbeefcafebabec001d00d").unwrap());
 	println!("{:?}", foo);
 	println!("{}", hex::encode(Vec::from(foo.clone())));
 	println!("{:?}", foo == bar);
