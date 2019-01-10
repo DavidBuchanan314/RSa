@@ -5,9 +5,17 @@ extern crate hex;
 
 /// This type represents positive arbitrary precision integers
 /// The least significant word comes first
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct BigInt {
 	storage: Vec<u64>
+}
+
+impl BigInt {
+	fn normalise(&mut self) -> () {
+		while self.storage.last() == Some(&0) {
+			self.storage.pop();
+		}
+	}
 }
 
 impl From<Vec<u8>> for BigInt {
@@ -18,7 +26,9 @@ impl From<Vec<u8>> for BigInt {
 			storage[si/8] |= (data[di] as u64) << (si%8)*8;
 			si += 1;
 		}
-		BigInt{storage: storage}
+		let mut result = BigInt{storage: storage};
+		result.normalise();
+		return result;
 	}
 }
 
@@ -30,14 +40,24 @@ impl From<BigInt> for Vec<u8> {
 				data[i*8+j] = (bigint.storage[i] >> (8*j)) as u8;
 			}
 		}
-		data.reverse(); // expensive!!
+		while data.last() == Some(&0) {data.pop();}; // strip trailing zeroes
+		data.reverse(); // revert to bigendian order
 		return data;
 	}
 }
 
+impl PartialEq for BigInt {
+	fn eq(&self, other: &BigInt) -> bool {
+		self.storage == other.storage // bigints should always be normalised
+	}
+}
+
+impl Eq for BigInt {}
+
 fn main() {
-	let foo = hex::decode("deadbeefcafebabec001d00d").unwrap();
-	let bar = BigInt::from(foo);
-	println!("{:?}", bar);
-	println!("{:?}", hex::encode(Vec::from(bar)));
+	let foo = BigInt::from(hex::decode("0000000000000000deadbeefcafebabec001d00d").unwrap());
+	let bar = BigInt::from(hex::decode("deadbeefcafebabec001d00d").unwrap());
+	println!("{:?}", foo);
+	println!("{}", hex::encode(Vec::from(foo.clone())));
+	println!("{:?}", foo == bar);
 }
