@@ -9,6 +9,7 @@ type BigIntWord = u32;
 type BigIntDWord = u64;
 const WORDBYTES: usize = 4;
 const BYTEBITS: usize = 8;
+const WORDBITS: usize = WORDBYTES * BYTEBITS;
 
 /// This type represents positive arbitrary precision integers
 /// The least significant word comes first
@@ -33,6 +34,10 @@ impl BigInt {
 		}
 	}
 	
+	fn get_bit(&self, i: usize) -> BigIntWord {
+		(self.get_word(i/WORDBITS) >> (i%WORDBITS)) & 1
+	}
+	
 	fn add(&self, other: &BigInt) -> BigInt {
 		let length = std::cmp::max(self.storage.len(), other.storage.len());
 		let mut result = vec![0; length];
@@ -40,7 +45,7 @@ impl BigInt {
 		for i in 0..length {
 			tmp += self.get_word(i) as BigIntDWord + other.get_word(i) as BigIntDWord;
 			result[i] = tmp as BigIntWord;
-			tmp >>= WORDBYTES * BYTEBITS; // carry any overflow
+			tmp >>= WORDBITS; // carry any overflow
 		}
 		
 		if tmp > 0 {
@@ -48,6 +53,17 @@ impl BigInt {
 		}
 		
 		return BigInt{storage: result};
+	}
+	
+	fn mul(&self, other: &BigInt) -> BigInt {
+		let mut result = BigInt::from(vec![0]);
+		for bit in (0..self.storage.len()*WORDBITS).rev() {
+			result = result.add(&result); // TODO implement shifts
+			if self.get_bit(bit) == 1 {
+				result = result.add(&other);
+			}
+		}
+		return result;
 	}
 }
 
@@ -94,8 +110,11 @@ impl PartialOrd for BigInt {
 fn main() {
 	let foo = BigInt::from(hex::decode("0000000000000000deadbeefcafebabec001d00d").unwrap());
 	let bar = BigInt::from(hex::decode("deadbeefcafebabec001d00d").unwrap());
+	let baz = BigInt::from(hex::decode("feedfacebadf00d5").unwrap());
+	let bat = BigInt::from(hex::decode("bada55c0ffeed00d").unwrap());
 	println!("{:?}", foo);
-	println!("{}", hex::encode(Vec::from(foo.clone())));
+	println!("0x{}", hex::encode(Vec::from(foo.clone())));
 	println!("{:?}", foo == bar);
-	println!("{}", hex::encode(Vec::from(foo.add(&bar))));
+	println!("0x{}", hex::encode(Vec::from(foo.add(&bar))));
+	println!("0x{}", hex::encode(Vec::from(baz.mul(&bat))));
 }
